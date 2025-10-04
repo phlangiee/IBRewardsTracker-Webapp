@@ -1,0 +1,111 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Index Page";
+}
+<h1>@ViewData["Index"]</h1>
+
+<link rel="stylesheet" href="~/css/popup.css">
+
+<link rel="stylesheet" href="~/css/site.css">
+
+<div class="container-fluid overflow-hidden">
+    <div class="d-flex flex-column justify-content-center align-items-center min-vh-75">
+        <h1>Travel Rewards Manager</h1>
+
+        <br />
+
+        <form id="loginForm" asp-page-handler="Login" class="w-50">
+
+            <div class="mb-3 row">
+                <input id="usernameField" type="text" name="Username" placeholder="Username" oninput="allowSubmit()" class="form-control w-100" />
+            </div>
+
+            <div class="mb-3 row">
+                <input id="passwordField" type="password" name="Password" placeholder="Password" oninput="allowSubmit()" class="form-control w-100" />
+            </div>
+
+            @if (Model.loginFailed)
+            {       <div class="mb-3 row">
+            <div class="alert alert-warning alert-dismissible fade show w-100" role="alert">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"
+                     width="1em"
+                     height="1em"
+                     viewBox="0 0 16 16"
+                     role="img"
+                     aria-label="Warning:"
+                     fill="currentColor">
+                    <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+                </svg>
+                <strong>Error: </strong>Login failed.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+
+            <div class="mb-3 row">
+                <button id="submitButton" type="submit" class="btn btn-primary w-100" disabled>Submit</button>
+            </div>
+
+            <div class="mb-3 row">
+                <button type="button" class="btn btn-outline-primary btn-sm"
+                        data-bs-container="body"
+                        data-bs-toggle="popover"
+                        data-bs-placement="bottom"
+                        data-bs-title="Hint"
+                        data-bs-content="It's the password to your computer.">
+                    Forgot your password?
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+        }); 
+
+        document.addEventListener("click", function (event) {
+            document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (popoverTrigger) {
+                let popoverInstance = bootstrap.Popover.getInstance(popoverTrigger);
+                if (popoverInstance && !popoverTrigger.contains(event.target) && !document.querySelector('.popover')?.contains(event.target)) {
+                    popoverInstance.hide();
+                }
+            });
+        });
+
+        const usernameField = document.getElementById("usernameField");
+        const passwordField = document.getElementById("passwordField");
+        const submitButton = document.getElementById("submitButton");
+
+        const loginForm = document.getElementById("loginForm");
+
+        function validUsername() {
+            if (usernameField.value == "" || usernameField.value == null) {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        function validPassword() {
+            if (passwordField.value == "" || passwordField.value == null) {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        function allowSubmit() {
+            if (validUsername() && validPassword()) {
+                submitButton.disabled = false;
+            } else {
+                submitButton.disabled = true;
+            }
+        }
+    </script>

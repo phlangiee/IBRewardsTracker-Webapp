@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\bin",
+    "\\bin\\Debug",
+    "\\Data",
+    "\\Models",
+    "\\Pages",
+    "\\Pages\\Shared",
+    "\\Sqlite",
+    "\\wwwroot",
+    "\\wwwroot\\css"
+  ],
+  "SelectedNode": "\\travelapp.csproj",
+  "PreviewInSolutionExplorer": false
+}

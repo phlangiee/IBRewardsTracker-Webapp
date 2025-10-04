@@ -1,0 +1,1739 @@
+﻿@page
+@model HomeModel
+@{
+    ViewData["Title"] = "Home page";
+}
+@using Newtonsoft.Json
+@using System.Text.Encodings.Web
+
+<head>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap JS (with Popper.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+</head>
+
+
+<link rel="stylesheet" href="~/css/popup.css">
+<link rel="stylesheet" href="~/css/site.css">
+
+<!--NAVIGATION-->
+<div class="d-flex justify-content-center gap-2">
+    <div class="btn-group" role="group" aria-label="Table Selection">
+        <input type="radio" class="btn-check" name="tableRadio" id="showButton_CardTable" autocomplete="off">
+        <label class="btn btn-secondary" for="showButton_CardTable" onclick="showMainTable()">Main</label>
+
+        <input type="radio" class="btn-check" name="tableRadio" id="showButton_ProgramTable" autocomplete="off">
+        <label class="btn btn-secondary" for="showButton_ProgramTable" onclick="showProgramTable()">Programs</label>
+
+        <input type="radio" class="btn-check" name="tableRadio" id="showButton_PersonTable" autocomplete="off">
+        <label class="btn btn-secondary" for="showButton_PersonTable" onclick="showPersonTable()">People</label>
+
+        <input type="radio" class="btn-check" name="tableRadio" id="showButton_TypeTable" autocomplete="off">
+        <label class="btn btn-secondary" for="showButton_TypeTable" onclick="showTypeTable()">Types</label>
+    </div>
+</div>
+
+<br />
+
+<style>
+    /* Custom input height */
+    .custom-input-height {
+        height: 2.25rem; /* Set input field height explicitly */
+        padding: 0.375rem 0.75rem; /* Adjust padding to match button style */
+    }
+
+    /* Custom button height */
+    .btn-custom-height {
+        height: 2.25rem; /* Match button height to input field */
+        padding: 0.375rem 0.75rem; /* Adjust padding to be consistent with inputs */
+        font-size: 1rem; /* Ensure font size is consistent */
+    }
+</style>
+
+<!--BUTTONS-->
+<div class="d-flex justify-content-center gap-2">
+    <!--<button class="btn btn-custom-height" onclick="debug()">DEBUG BUTTON</button>
+
+    <script>
+        function debug() {
+            console.log(cardHistoryStack.size);
+            console.log(cardHistoryStack.peek());
+        }
+    </script>-->
+    <!--ADD-->
+    <button class="btn btn-success btn-custom-height" onclick="openPopup_addCard()" id="openPopup_addCard">Add</button>
+    <button class="btn btn-success btn-custom-height" onclick="openPopup_addProgram()" id="openPopup_addProgram">Add</button>
+    <button class="btn btn-success btn-custom-height" onclick="openPopup_addPerson()" id="openPopup_addPerson">Add</button>
+    <button class="btn btn-success btn-custom-height" onclick="openPopup_addType()" id="openPopup_addType">Add</button>
+
+    <!--UNDO-->
+    <button class="btn btn-danger btn-custom-height" onclick="undoPersonTable()" id="undoButton_PersonTable">Undo</button>
+    <button class="btn btn-danger btn-custom-height" onclick="undoCardTable()" id="undoButton_CardTable">Undo</button>
+    <button class="btn btn-danger btn-custom-height" onclick="undoProgramTable()" id="undoButton_ProgramTable">Undo</button>
+    <button class="btn btn-danger btn-custom-height" onclick="undoTypeTable()" id="undoButton_TypeTable">Undo</button>
+
+    <!--SEARCH-->
+    <div class="col-md-3 mb-3">
+        <input id="searchCardTextField"
+               type="text"
+               class="form-control custom-input-height"
+               placeholder="Search Card"
+               onkeydown="searchCardIfEnter(event)" />
+        <input id="searchProgramTextField"
+               type="text"
+               class="form-control custom-input-height"
+               placeholder="Search Program"
+               onkeydown="searchProgramIfEnter(event)" />
+        <input id="searchPersonTextField"
+               type="text"
+               class="form-control custom-input-height"
+               placeholder="Search Person"
+               onkeydown="searchPeopleIfEnter(event)" />
+        <input id="searchTypeTextField"
+               type="text"
+               class="form-control custom-input-height"
+               placeholder="Search Type"
+               onkeydown="searchTypeIfEnter(event)" />
+    </div>
+
+    <button class="btn btn-primary btn-custom-height" onclick="searchCard()" id="searchCardButton">Search</button>
+    <button class="btn btn-primary btn-custom-height" onclick="searchProgram()" id="searchProgramButton">Search</button>
+    <button class="btn btn-primary btn-custom-height" onclick="searchPeople()" id="searchPersonButton">Search</button>
+    <button class="btn btn-primary btn-custom-height" onclick="searchType()" id="searchTypeButton">Search</button>
+
+    <button class="btn btn-secondary btn-custom-height" onclick="clearCardSearch()" id="clearCardSearchButton">Clear</button>
+    <button class="btn btn-secondary btn-custom-height" onclick="clearProgramSearch()" id="clearProgramSearchButton">Clear</button>
+    <button class="btn btn-secondary btn-custom-height" onclick="clearPeopleSearch()" id="clearPersonSearchButton">Clear</button>
+    <button class="btn btn-secondary btn-custom-height" onclick="clearTypeSearch()" id="clearTypeSearchButton">Clear</button>
+</div>
+
+
+<!--MORE SEARCH STUFF-->
+<script>
+    //CARD SEARCH
+    const searchCardTextField = document.getElementById("searchCardTextField");
+    const clearCardSearchButton = document.getElementById("clearCardSearchButton");
+
+    function searchCardIfEnter(event) {
+        if (event.key === "Enter") {
+            searchCard();
+        }
+    }
+
+    function searchCard() {
+        return new Promise((resolve, reject) => {
+            var query = searchCardTextField.value;
+
+            if (query == "") {
+                clearCardSearchButton.disabled = true;
+            } else {
+                clearCardSearchButton.disabled = false;
+            }
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            searchCardTextField.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "GET",
+                url: "/Home?handler=SearchCard&query=" + encodeURIComponent(query),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    ModelCard = response;
+                    ModelCard = ModelCard.map(card => ({
+                        Id: card.id,
+                        AffinityProgramID: card.affinityProgramID,
+                        PersonID: card.personID,
+                        RewardCompany: card.rewardCompany,
+                        Points: card.points,
+                        DateOpen: card.dateOpen,
+                        DateClose: card.dateClose ?? null,
+                        AnnualFee: card.annualFee ?? null,
+                        CreditLine: card.creditLine ?? null,
+                        Notes: card.notes ?? null
+                    }));
+                    showCardQuery();
+                    resolve();
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function clearCardSearch() {
+        searchCardTextField.value = "";
+        searchCard()
+    }
+
+    //PROGRAM SEARCH
+    const searchProgramTextField = document.getElementById("searchProgramTextField");
+    const clearProgramSearchButton = document.getElementById("clearProgramSearchButton");
+
+    function searchProgramIfEnter(event) {
+        if (event.key === "Enter") {
+            searchProgram();
+        }
+    }
+
+    function searchProgram() {
+        return new Promise((resolve, reject) => {
+            var query = searchProgramTextField.value;
+
+            if (query == "") {
+                clearProgramSearchButton.disabled = true;
+            } else {
+                clearProgramSearchButton.disabled = false;
+            }
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            searchProgramTextField.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "GET",
+                url: "/Home?handler=SearchProgram&query=" + encodeURIComponent(query),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    ModelProgram = response;
+                    ModelProgram = ModelProgram.map(program => ({
+                        Id: program.id,
+                        TypeID: program.typeID,
+                        ProgramCompany: program.programCompany,
+                        AffinityNum: program.affinityNum,
+                        Level: program.level ?? null
+                    }));
+                    showProgramQuery();
+                    resolve();
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function clearProgramSearch() {
+        searchProgramTextField.value = "";
+        searchProgram()
+    }
+
+    //PEOPLE SEARCH
+    const searchPersonTextField = document.getElementById("searchPersonTextField");
+    const clearPersonSearchButton = document.getElementById("clearPersonSearchButton");
+
+    function searchPeopleIfEnter(event) {
+        if (event.key === "Enter") {
+            searchPeople();
+        }
+    }
+
+    function searchPeople() {
+        return new Promise((resolve, reject) => {
+            var query = searchPersonTextField.value;
+
+            if (query == "") {
+                clearPersonSearchButton.disabled = true;
+            } else {
+                clearPersonSearchButton.disabled = false;
+            }
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            searchPersonTextField.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "GET",
+                url: "/Home?handler=SearchPeople&query=" + encodeURIComponent(query),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    ModelPeople = response;
+                    ModelPeople = ModelPeople.map(person => ({
+                        Id: person.id,
+                        Name: person.name
+                    }));
+                    showPersonQuery();
+                    resolve();
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function clearPeopleSearch() {
+        searchPersonTextField.value = "";
+        searchPeople()
+    }
+
+    //TYPE SEARCH
+    const searchTypeTextField = document.getElementById("searchTypeTextField");
+    const clearTypeSearchButton = document.getElementById("clearTypeSearchButton");
+
+    function searchTypeIfEnter(event) {
+        if (event.key === "Enter") {
+            searchType();
+        }
+    }
+
+    function searchType() {
+        return new Promise((resolve, reject) => {
+            var query = searchTypeTextField.value;
+
+            if (query == "") {
+                clearTypeSearchButton.disabled = true;
+            } else {
+                clearTypeSearchButton.disabled = false;
+            }
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            searchTypeTextField.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "GET",
+                url: "/Home?handler=SearchType&query=" + encodeURIComponent(query),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    ModelType = response;
+                    ModelType = ModelType.map(type => ({
+                        Id: type.id,
+                        Description: type.description
+                    }));
+                    showTypeQuery();
+                    resolve();
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function clearTypeSearch() {
+        searchTypeTextField.value = "";
+        searchType()
+    }
+</script>
+
+<br />
+
+<body>
+
+
+    <!--THE MAIN (CARD) TABLE-->
+    <table id="main-table" class="table table-hover">
+        <thead>
+            <tr>
+                <th>Card</th>
+                <th>Program</th>
+                <th>Points</th>
+                <th>Edit Points</th>
+                <th>Delete/Edit</th>
+            </tr>
+        </thead>
+        <tbody id="CardList">
+            <!--code is later-->
+        </tbody>
+    </table>
+
+    <script>
+        function submitPoints(event, Id) {
+            if (event.key === 'Enter') {
+                let pointsField = document.getElementById("pointsField_" + String(Id));
+                let pointsRow = document.getElementById("points_" + String(Id));
+                let newPoints = document.getElementById("newPointsField_" + String(Id));
+                var points = parseInt(pointsRow.textContent) + parseInt(pointsField.value);
+                newPoints.value = points;
+
+                var dto =
+                {
+                    Id: Id,
+                    Points: points
+                };
+
+                var token = $('input[name="__RequestVerificationToken"]').val();
+                dto.__RequestVerificationToken = token;
+
+                $.ajax({
+                    type: "POST",
+                    url: "/Home?handler=EditPoints",
+                    dataType: "json",
+                    data: JSON.stringify(dto),
+                    contentType: "application/json; charset=utf-8",
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    success: function (response) {
+                        console.log("Success:", response);
+                        searchCard().then(() => {
+                            saveCardTable();
+                        }).catch(error => {
+                            console.log("Search failed:", error);
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.log("Error:", xhr.status, error);
+                        console.log("Response Text:", xhr.responseText);
+                    }
+                });
+            }
+        }
+
+        function deleteCard(Card) {
+            var data = JSON.parse(decodeURIComponent(Card));
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            data.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "POST",
+                url: "/Home?handler=DeleteCard",
+                dataType: "json",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    searchCard().then(() => {
+                        saveCardTable();
+                    }).catch(error => {
+                        console.log("Search failed:", error);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                }
+            });
+
+        }
+    </script>
+
+    <div class="modal fade" id="cards-popup" tabindex="-1" aria-labelledby="cardsPopupLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cardsPopupLabel">Card</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closePopupButton_Card" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="CardForm" asp-page-handler="AddCard" onsubmit="return saveCardTable();">
+                        <input type="hidden" id="cardIdField" name="Id">
+
+                        <div class="mb-3">
+                            <label class="form-label required">Program</label>
+                            <select id="programCompanyFieldID" name="AffinityProgramID" class="form-select">
+                                @foreach(var Program in Model.Programs) {
+                                <option value="@Program.Id">@Program.ProgramCompany</option>
+                        }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Person</label>
+                            <select id="personField" name="PersonID" class="form-select">
+                                @foreach(var Person in Model.People) {
+                                <option value="@Person.Id">@Person.Name</option>
+                        }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Card Company</label>
+                            <input id="cardCompanyField" name="RewardCompany" type="text" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Current Points</label>
+                            <input id="numberField" name="Points" type="number" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Date Opened</label>
+                            <input id="openedField" name="DateOpen" type="date" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date Closed</label>
+                            <input id="closedField" name="DateClose" type="date" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Annual Fee</label>
+                            <input id="feeField" name="AnnualFee" type="text" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Credit Line</label>
+                            <input id="creditLnField" name="CreditLine" type="text" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <input id="notesField" name="Notes" type="text" class="form-control">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" form="CardForm" class="btn btn-primary">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        var ModelCard;
+        const CardList = document.getElementById("CardList");
+
+        const cardForm = document.getElementById("CardForm");
+
+        const cardPopupElement = document.getElementById("cards-popup");
+        const cardPopup = new bootstrap.Modal(cardPopupElement);
+
+        function openPopup_editCard(Id) {
+            var editCardButton = document.getElementById("editCardButton_" + String(Id));
+
+            const formAction = cardForm.getAttribute('action');
+            cardForm.setAttribute('action', formAction.replace('AddCard', 'EditCard'));
+
+            document.getElementById('cardIdField').value = editCardButton.dataset.id.replace(/^"|"$/g, '');
+            document.getElementById('programCompanyFieldID').value = editCardButton.dataset.affinityprogramid.replace(/^"|"$/g, '');
+            document.getElementById('personField').value = editCardButton.dataset.personid.replace(/^"|"$/g, '');
+            document.getElementById('cardCompanyField').value = editCardButton.dataset.rewardcompany.replace(/^"|"$/g, '');
+            document.getElementById('numberField').value = editCardButton.dataset.points.replace(/^"|"$/g, '');
+
+            document.getElementById('openedField').value = editCardButton.dataset.dateopen.replace(/^"|"$/g, '');
+
+            document.getElementById('closedField').value = editCardButton.dataset.dateclose
+                ? editCardButton.dataset.dateclose.replace(/^"|"$/g, '')
+                : '';
+
+            document.getElementById('feeField').value = editCardButton.dataset.annualfee
+                ? editCardButton.dataset.annualfee.replace(/^"|"$/g, '')
+                : '';
+
+            document.getElementById('creditLnField').value = editCardButton.dataset.creditline
+                ? editCardButton.dataset.creditline.replace(/^"|"$/g, '')
+                : '';
+
+            document.getElementById('notesField').value = editCardButton.dataset.notes
+                ? editCardButton.dataset.notes.replace(/^"|"$/g, '')
+                : '';
+
+
+            programPopup.hide();
+            cardPopup.show();
+            typePopup.hide();
+            personPopup.hide();
+        }
+
+        function openPopup_addCard() {
+            document.getElementById('cardIdField').value = null;
+            document.getElementById('programCompanyFieldID').value = null;
+            document.getElementById('personField').value = null;
+            document.getElementById('cardCompanyField').value = null;
+            document.getElementById('numberField').value = null;
+            document.getElementById('openedField').value = null;
+            document.getElementById('closedField').value = null;
+            document.getElementById('feeField').value = null
+            document.getElementById('creditLnField').value = null;
+            document.getElementById('notesField').value = null;
+
+            programPopup.hide();
+            cardPopup.show();
+            typePopup.hide();
+            personPopup.hide();
+
+            const formAction = cardForm.getAttribute('action');
+            cardForm.setAttribute('action', formAction.replace('EditCard', 'AddCard'));
+
+            fetch('/Home?handler=refreshCardData')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("cardIdField").value = data.id;
+                })
+                .catch(error => console.error("Error:", error));
+        }
+    </script>
+
+
+    <!--THE PROGRAM TABLE-->
+    <table id="program-table" class="table table-hover">
+        <thead>
+            <tr>
+                <th>Program</th>
+                <th>Frequent Flyer Number</th>
+                <th>Delete/Edit</th>
+            </tr>
+        </thead>
+        <tbody id="ProgramList">
+            <!--later more code-->
+        </tbody>
+    </table>
+
+    <div class="modal fade" id="programs-popup" tabindex="-1" aria-labelledby="programsPopupLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="programsPopupLabel">Program</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closePopupButton_Program" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="ProgramForm" asp-page-handler="AddProgram" onsubmit="return saveProgramTable();">
+                        <input type="hidden" id="programIdField" name="Id" value="parseInt(@Model.Programs.ToList().Count)">
+
+                        <div class="mb-3">
+                            <label class="form-label required">Type</label>
+                            <select id="typeField" name="TypeID" class="form-select">
+                                @foreach(var Type in Model.Types) {
+                                <option value="@Type.Id">@Type.Description</option>
+                        }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Program Company</label>
+                            <input style="width:auto" id="programCompanyField" name="ProgramCompany" type="text" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Frequent Flyer Number</label>
+                            <input style="width:auto" id="affinityNumField" name="AffinityNum" type="text" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Level</label>
+                            <input style="width:auto" id="levelField" name="Level" type="text" class="form-control">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" form="ProgramForm" class="btn btn-primary">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        var ModelProgram;
+        const ProgramList = document.getElementById("ProgramList");
+
+        const programForm = document.getElementById("ProgramForm");
+
+        const programPopupElement = document.getElementById("programs-popup");
+        const programPopup = new bootstrap.Modal(programPopupElement);
+
+        function openPopup_editProgram(Id) {
+            var editProgramButton = document.getElementById("editProgramButton_" + String(Id));
+
+            const formAction = programForm.getAttribute('action');
+            programForm.setAttribute('action', formAction.replace('AddProgram', 'EditProgram'));
+
+            document.getElementById('programIdField').value = editProgramButton.dataset.id.replace(/^"|"$/g, '');
+            document.getElementById('typeField').value = editProgramButton.dataset.typeid.replace(/^"|"$/g, '');
+            document.getElementById('programCompanyField').value = editProgramButton.dataset.programcompany.replace(/^"|"$/g, '');
+            document.getElementById('affinityNumField').value = editProgramButton.dataset.affinitynum.replace(/^"|"$/g, '');
+
+            document.getElementById('levelField').value = editProgramButton.dataset.level
+                ? editProgramButton.dataset.level.replace(/^"|"$/g, '')
+                : '';
+
+            programPopup.show();
+            cardPopup.hide();
+            typePopup.hide();
+            personPopup.hide();
+        }
+
+        function openPopup_addProgram() {
+            document.getElementById('programIdField').value = null;
+            document.getElementById('typeField').value = null;
+            document.getElementById('programCompanyField').value = null;
+            document.getElementById('affinityNumField').value = null;
+            document.getElementById('levelField').value = null;
+
+            programPopup.show();
+            cardPopup.hide();
+            typePopup.hide();
+            personPopup.hide();
+
+            const formAction = programForm.getAttribute('action');
+            programForm.setAttribute('action', formAction.replace('EditProgram', 'AddProgram'));
+
+            fetch('/Home?handler=refreshProgramData')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("programIdField").value = data.id;
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        function deleteProgram(Program) {
+            var data = JSON.parse(decodeURIComponent(Program));
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            data.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "POST",
+                url: "/Home?handler=DeleteProgram",
+                dataType: "json",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    searchProgram().then(() => {
+                        saveProgramTable();
+                    }).catch(error => {
+                        console.log("Search failed:", error);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                }
+            });
+
+        }
+    </script>
+
+
+    <!--THE PERSON TABLE-->
+    <table id="person-table" class="table table-hover" style="display: none;">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Delete/Edit</th>
+            </tr>
+        </thead>
+        <tbody id="PeopleList">
+            <!--late rmor code-->
+        </tbody>
+    </table>
+
+    <div class="modal fade" id="people-popup" tabindex="-1" aria-labelledby="peoplePopupLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="peoplePopupLabel">Person</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closePopupButton_Person" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="PersonForm" asp-page-handler="AddPerson" onsubmit="return savePersonTable();">
+                        <input type="hidden" id="personIdField" name="Id" value="parseInt(@Model.People.ToList().Count)">
+
+                        <div class="mb-3">
+                            <label class="form-label required">Name</label>
+                            <input style="width:auto" id="nameField" name="Name" type="text" class="form-control" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" form="PersonForm" class="btn btn-primary" id="submitPerson">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var ModelPeople;
+        const PeopleList = document.getElementById("PeopleList");
+
+        const personForm = document.getElementById("PersonForm");
+
+        const personPopupElement = document.getElementById("people-popup");
+        const personPopup = new bootstrap.Modal(personPopupElement);
+
+
+        function openPopup_editPerson(Id) {
+            var editPersonButton = document.getElementById("editPersonButton_" + String(Id));
+
+            const formAction = personForm.getAttribute('action');
+            personForm.setAttribute('action', formAction.replace('AddPerson', 'EditPerson'));
+
+            document.getElementById('personIdField').value = editPersonButton.dataset.id.replace(/^"|"$/g, '');
+            document.getElementById('nameField').value = editPersonButton.dataset.name.replace(/^"|"$/g, '');
+
+            programPopup.hide();
+            cardPopup.hide();
+            typePopup.hide();
+            personPopup.show();
+        }
+
+        function openPopup_addPerson() {
+            document.getElementById('personIdField').value = null;
+            document.getElementById('nameField').value = null;
+
+            programPopup.hide();
+            cardPopup.hide();
+            typePopup.hide();
+            personPopup.show();
+
+            const formAction = personForm.getAttribute('action');
+            personForm.setAttribute('action', formAction.replace('EditPerson', 'AddPerson'));
+
+            fetch('/Home?handler=refreshPersonData')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("personIdField").value = data.id;
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        function deletePerson(Person) {
+            var data = JSON.parse(decodeURIComponent(Person));
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            data.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "POST",
+                url: "/Home?handler=DeletePerson",
+                dataType: "json",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    searchPeople().then(() => {
+                        savePersonTable();
+                    }).catch(error => {
+                        console.log("Search failed:", error);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                }
+            });
+
+        }
+    </script>
+
+    <!--THE TYPE TABLE-->
+    <table id="type-table" class="table table-hover" style="display: none;">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Delete/Edit</th>
+            </tr>
+        </thead>
+        <tbody id="TypeList">
+            <!--more below-->
+        </tbody>
+    </table>
+
+
+    <div class="modal fade" id="types-popup" tabindex="-1" aria-labelledby="typesPopupLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="typesPopupLabel">Reward Type</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closePopupButton_Type" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="TypeForm" asp-page-handler="AddType" onsubmit="return saveTypeTable();">
+                        <input type="hidden" id="typeIdField" name="Id" value="parseInt(@Model.Types.ToList().Count)">
+
+                        <div class="mb-3">
+                            <label class="form-label required">Description</label>
+                            <input style="width:auto" id="descriptionField" name="Description" type="text" class="form-control" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" form="TypeForm" class="btn btn-primary" id="submitType">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        var ModelType;
+        const TypeList = document.getElementById("TypeList");
+
+        const typeForm = document.getElementById("TypeForm");
+
+        const typePopupElement = document.getElementById("types-popup");
+        const typePopup = new bootstrap.Modal(typePopupElement);
+
+        function openPopup_editType(Id) {
+            var editTypeButton = document.getElementById("editTypeButton_" + String(Id));
+
+            const formAction = typeForm.getAttribute('action');
+            typeForm.setAttribute('action', formAction.replace('AddType', 'EditType'));
+
+            document.getElementById('typeIdField').value = editTypeButton.dataset.id.replace(/^"|"$/g, '');
+            document.getElementById('descriptionField').value = editTypeButton.dataset.description.replace(/^"|"$/g, '');
+
+            programPopup.hide();
+            cardPopup.hide();
+            typePopup.show();
+            personPopup.hide();
+
+        }
+
+        function openPopup_addType() {
+            document.getElementById('typeIdField').value = null;
+            document.getElementById('descriptionField').value = null;
+
+            programPopup.hide();
+            cardPopup.hide();
+            typePopup.show();
+            personPopup.hide();
+
+            const formAction = typeForm.getAttribute('action');
+            typeForm.setAttribute('action', formAction.replace('EditType', 'AddType'));
+
+            fetch('/Home?handler=refreshTypeData')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("typeIdField").value = data.id;
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        function deleteType(Type) {
+            var data = JSON.parse(decodeURIComponent(Type));
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+            data.__RequestVerificationToken = token;
+
+            $.ajax({
+                type: "POST",
+                url: "/Home?handler=DeleteType",
+                dataType: "json",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                success: function (response) {
+                    console.log("Success:", response);
+                    searchType().then(() => {
+                        saveTypeTable();
+                    }).catch(error => {
+                        console.log("Search failed:", error);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error:", xhr.status, error);
+                    console.log("Response Text:", xhr.responseText);
+                }
+            });
+
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const storedcardStack = sessionStorage.getItem("cardHistoryStack");
+            const storedprogramStack = sessionStorage.getItem("programHistoryStack");
+            const storedpersonStack = sessionStorage.getItem("personHistoryStack");
+            const storedtypeStack = sessionStorage.getItem("typeHistoryStack");
+
+            if (storedcardStack) {
+                const parsedStack = JSON.parse(storedcardStack);
+                cardHistoryStack.head = reconstructStack(parsedStack);
+                cardHistoryStack.tail = getTailNode(cardHistoryStack.head);
+                cardHistoryStack.current = cardHistoryStack.tail;
+                cardHistoryStack.size = parsedStack.length;
+            }
+            if (storedprogramStack) {
+                const parsedStack = JSON.parse(storedprogramStack);
+                programHistoryStack.head = reconstructStack(parsedStack);
+                programHistoryStack.tail = getTailNode(programHistoryStack.head);
+                programHistoryStack.current = programHistoryStack.tail;
+                programHistoryStack.size = parsedStack.length;
+            }
+            if (storedpersonStack) {
+                const parsedStack = JSON.parse(storedpersonStack);
+                personHistoryStack.head = reconstructStack(parsedStack);
+                personHistoryStack.tail = getTailNode(personHistoryStack.head);
+                personHistoryStack.current = personHistoryStack.tail;
+                personHistoryStack.size = parsedStack.length;
+            }
+            if (storedtypeStack) {
+                const parsedStack = JSON.parse(storedtypeStack);
+                typeHistoryStack.head = reconstructStack(parsedStack);
+                typeHistoryStack.tail = getTailNode(typeHistoryStack.head);
+                typeHistoryStack.current = typeHistoryStack.tail;
+                typeHistoryStack.size = parsedStack.length;
+            }
+
+            const storedCurrentTable = sessionStorage.getItem("currentTable");
+
+            if (storedCurrentTable) {
+                currentTable = storedCurrentTable;
+            } else {
+                let currentTable = "main";
+                sessionStorage.setItem("currentTable", currentTable);
+            }
+            showCurrentTable();
+            runSearches(storedcardStack, storedprogramStack, storedpersonStack, storedtypeStack).catch(error => console.error("Error in search functions:", error));
+
+
+
+        });
+
+        async function runSearches(storedcardStack, storedprogramStack, storedpersonStack, storedtypeStack) {
+            await searchPeople();
+            await searchType();
+            await searchProgram();
+            await searchCard();
+
+            const isUndoRefresh = sessionStorage.getItem("isUndoRefresh");
+
+            const lastSavedCards = cardHistoryStack.peek();
+            const lastSavedPrograms = programHistoryStack.peek();
+            const lastSavedPeople = personHistoryStack.peek();
+            const lastSavedTypes = typeHistoryStack.peek();
+
+            if (isUndoRefresh != "true") {
+                saveAllTables();
+            } else if (!storedcardStack && !storedprogramStack && !storedpersonStack && !storedtypeStack) {
+                saveAllTables();
+            }
+
+            sessionStorage.setItem("isUndoRefresh", false);
+
+        }
+
+        function showCardQuery() {
+            while (CardList.firstChild) {
+                CardList.removeChild(CardList.firstChild);
+            }
+            for (let i = 0; i < ModelCard.length; i++) {
+
+                let row = document.createElement("tr");
+                let card = ModelCard[i];
+
+                let dataAttributes = "";
+                for (const [key, value] of Object.entries(card)) {
+                    if (value != null) {
+                        dataAttributes += `data-${key.toLowerCase()}="${value}" `;
+                    }
+                }
+
+                let pointsDisplay = card.DateClose === null ? card.Points : "<i>Closed</i>";
+
+                let disabledAttribute = card.DateClose === null ? "" : "disabled";
+
+                const cardJSON = encodeURIComponent(JSON.stringify(card));
+
+                row.id = `row_${card.Id}`;
+                row.innerHTML = `
+                                            <td>${card.RewardCompany}</td>
+                                            <td>${getProgramName(card.AffinityProgramID)}</td>
+                                            <td id="points_${card.Id}">${pointsDisplay}</td>
+                                            <td>
+                                                <form onkeydown="submitPoints(event, ${card.Id})">
+                                                    <input hidden name="Id" type="number" value="${card.Id}" />
+                                                    <input hidden id="newPointsField_${card.Id}" name="Points" type="number" value="${card.Points}" />
+                                                    <input class="form-control form-control-sm" id="pointsField_${card.Id}" type="number" placeholder="Enter points" required ${disabledAttribute} />
+                                                </form>
+                                            </td>
+                                            <td class="d-flex gap-2 align-items-center">
+                                                <div class="btn-group" role="group" aria-label="Card Actions">
+                                                    <button id="editCardButton_${card.Id}" class="btn btn-primary" onclick="openPopup_editCard(${card.Id})" ${dataAttributes}>
+                                                        EDIT
+                                                    </button>
+                                                    <button class="btn btn-danger" onclick="deleteCard('${cardJSON}')">
+                                                        DELETE
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            `;
+                CardList.appendChild(row);
+            }
+        }
+
+        function getProgramName(programID) {
+            if (!Array.isArray(ModelProgram)) {
+                console.error("ModelProgram is not an array or is undefined:", ModelProgram);
+                return "N/A";
+            }
+            let name = "N/A";
+            for (let i = 0; i < ModelProgram.length; i++) {
+                if (ModelProgram[i].Id == programID) {
+                    name = ModelProgram[i].ProgramCompany;
+                }
+            }
+            return name;
+        }
+
+        function showProgramQuery() {
+            while (ProgramList.firstChild) {
+                ProgramList.removeChild(ProgramList.firstChild);
+            }
+            for (let i = 0; i < ModelProgram.length; i++) {
+
+                let row = document.createElement("tr");
+                let program = ModelProgram[i];
+
+                let dataAttributes = "";
+                for (const [key, value] of Object.entries(program)) {
+                    if (value != null) {
+                        dataAttributes += `data-${key.toLowerCase()}="${value}" `;
+                    }
+                }
+
+                const programJSON = encodeURIComponent(JSON.stringify(program));
+
+                row.id = `row_${program.Id}`;
+                row.innerHTML = `
+                                        <td>${program.ProgramCompany}</td>
+                                        <td>${program.AffinityNum}</td>
+                                        <td class="d-flex gap-2 align-items-center">
+                                            <div class="btn-group" role="group" aria-label="Program Actions">
+                                                <button id="editProgramButton_${program.Id}" class="btn btn-primary" onclick="openPopup_editProgram(${program.Id})" ${dataAttributes}>
+                                                    EDIT
+                                                </button>
+                                                <button class="btn btn-danger" onclick="deleteProgram('${programJSON}')">
+                                                    DELETE
+                                                </button>
+                                            </div>
+                                        </td>
+                                    `;
+                ProgramList.appendChild(row);
+            }
+        }
+
+        function showPersonQuery() {
+            while (PeopleList.firstChild) {
+                PeopleList.removeChild(PeopleList.firstChild);
+            }
+            for (let i = 0; i < ModelPeople.length; i++) {
+
+                let row = document.createElement("tr");
+                let person = ModelPeople[i];
+
+                let dataAttributes = "";
+                for (const [key, value] of Object.entries(person)) {
+                    if (value != null) {
+                        dataAttributes += `data-${key.toLowerCase()}="${value}" `;
+                    }
+                }
+
+                const personJSON = encodeURIComponent(JSON.stringify(person));
+
+                row.id = `row_${person.Id}`;
+                row.innerHTML = `
+                                        <td class="person-name">${person.Name}</td>
+                                        <td class="d-flex gap-2 align-items-center">
+                                            <div class="btn-group" role="group" aria-label="Person Actions">
+                                                <button id="editPersonButton_${person.Id}" class="btn btn-primary" onclick="openPopup_editPerson(${person.Id})" ${dataAttributes}>
+                                                    EDIT
+                                                </button>
+                                                <button class="btn btn-danger" onclick="deletePerson('${personJSON}')">
+                                                    DELETE
+                                                </button>
+                                            </div>
+                                        </td>
+                                    `;
+                PeopleList.appendChild(row);
+            }
+        }
+
+        function showTypeQuery() {
+            while (TypeList.firstChild) {
+                TypeList.removeChild(TypeList.firstChild);
+            }
+            for (let i = 0; i < ModelType.length; i++) {
+
+                let row = document.createElement("tr");
+                let type = ModelType[i];
+
+                let dataAttributes = "";
+                for (const [key, value] of Object.entries(type)) {
+                    if (value != null) {
+                        dataAttributes += `data-${key.toLowerCase()}="${value}" `;
+                    }
+                }
+
+                const typeJSON = encodeURIComponent(JSON.stringify(type));
+
+                row.id = `row_${type.Id}`;
+                row.innerHTML = `
+                                        <td>${type.Description}</td>
+                                        <td class="d-flex gap-2 align-items-center">
+                                            <div class="btn-group" role="group" aria-label="Type Actions">
+                                                <button id="editTypeButton_${type.Id}" class="btn btn-primary" onclick="openPopup_editType(${type.Id})" ${dataAttributes}>
+                                                    EDIT
+                                                </button>
+                                                <button class="btn btn-danger" onclick="deleteType('${typeJSON}')">
+                                                    DELETE
+                                                </button>
+                                            </div>
+                                        </td>
+                                    `;
+                TypeList.appendChild(row);
+            }
+        }
+
+
+
+        const mainTable = document.getElementById('main-table');
+        const programTable = document.getElementById('program-table');
+        const personTable = document.getElementById('person-table');
+        const typeTable = document.getElementById('type-table');
+
+        const mainTable_undoButton = document.getElementById('undoButton_CardTable');
+        const programTable_undoButton = document.getElementById('undoButton_ProgramTable');
+        const personTable_undoButton = document.getElementById('undoButton_PersonTable');
+        const typeTable_undoButton = document.getElementById('undoButton_TypeTable');
+
+        const addCardButton = document.getElementById("openPopup_addCard");
+        const addProgramButton = document.getElementById("openPopup_addProgram");
+        const addPersonButton = document.getElementById("openPopup_addPerson");
+        const addTypeButton = document.getElementById("openPopup_addType");
+
+        const showCardTableButton = document.getElementById("showButton_CardTable");
+        const showProgramTableButton = document.getElementById("showButton_ProgramTable");
+        const showPersonTableButton = document.getElementById("showButton_PersonTable");
+        const showTypeTableButton = document.getElementById("showButton_TypeTable");
+
+
+        const searchCardButton = document.getElementById("searchCardButton");
+        const searchProgramButton = document.getElementById("searchProgramButton");
+        const searchPersonButton = document.getElementById("searchPersonButton");
+        const searchTypeButton = document.getElementById("searchTypeButton");
+
+        if (sessionStorage.getItem("currentTable") == null) {
+            let currentTable = "main";
+            sessionStorage.setItem("currentTable", currentTable);
+        }
+
+        function showMainTable() {
+            mainTable.style.display = 'table';
+            programTable.style.display = 'none';
+            personTable.style.display = 'none';
+            typeTable.style.display = 'none';
+
+            mainTable_undoButton.style.display = 'block';
+            programTable_undoButton.style.display = 'none';
+            personTable_undoButton.style.display = 'none';
+            typeTable_undoButton.style.display = 'none';
+
+            addCardButton.style.display = 'block';
+            addProgramButton.style.display = 'none';
+            addPersonButton.style.display = 'none';
+            addTypeButton.style.display = 'none';
+
+
+            searchCardTextField.style.display = 'block';
+            searchProgramTextField.style.display = 'none';
+            searchPersonTextField.style.display = 'none';
+            searchTypeTextField.style.display = 'none';
+
+            searchCardButton.style.display = 'block';
+            searchProgramButton.style.display = 'none';
+            searchPersonButton.style.display = 'none';
+            searchTypeButton.style.display = 'none';
+
+            clearCardSearchButton.style.display = 'block';
+            clearProgramSearchButton.style.display = 'none';
+            clearPersonSearchButton.style.display = 'none';
+            clearTypeSearchButton.style.display = 'none';
+
+            showCardTableButton.disabled = true;
+            showProgramTableButton.disabled = false;
+            showPersonTableButton.disabled = false;
+            showTypeTableButton.disabled = false;
+
+            currentTable = "main";
+            sessionStorage.setItem("currentTable", currentTable);
+        }
+
+        function showProgramTable() {
+            mainTable.style.display = 'none';
+            programTable.style.display = 'table';
+            personTable.style.display = 'none';
+            typeTable.style.display = 'none';
+
+            mainTable_undoButton.style.display = 'none';
+            programTable_undoButton.style.display = 'block';
+            personTable_undoButton.style.display = 'none';
+            typeTable_undoButton.style.display = 'none';
+
+            addCardButton.style.display = 'none';
+            addProgramButton.style.display = 'block';
+            addPersonButton.style.display = 'none';
+            addTypeButton.style.display = 'none';
+
+
+            searchCardTextField.style.display = 'none';
+            searchProgramTextField.style.display = 'block';
+            searchPersonTextField.style.display = 'none';
+            searchTypeTextField.style.display = 'none';
+
+            searchCardButton.style.display = 'none';
+            searchProgramButton.style.display = 'block';
+            searchPersonButton.style.display = 'none';
+            searchTypeButton.style.display = 'none';
+
+            clearCardSearchButton.style.display = 'none';
+            clearProgramSearchButton.style.display = 'block';
+            clearPersonSearchButton.style.display = 'none';
+            clearTypeSearchButton.style.display = 'none';
+
+            showCardTableButton.disabled = false;
+            showProgramTableButton.disabled = true;
+            showPersonTableButton.disabled = false;
+            showTypeTableButton.disabled = false;
+
+            currentTable = "program";
+            sessionStorage.setItem("currentTable", currentTable);
+        }
+
+        function showPersonTable() {
+            mainTable.style.display = 'none';
+            programTable.style.display = 'none';
+            personTable.style.display = 'table';
+            typeTable.style.display = 'none';
+
+            mainTable_undoButton.style.display = 'none';
+            programTable_undoButton.style.display = 'none';
+            personTable_undoButton.style.display = 'block';
+            typeTable_undoButton.style.display = 'none';
+
+            addCardButton.style.display = 'none';
+            addProgramButton.style.display = 'none';
+            addPersonButton.style.display = 'block';
+            addTypeButton.style.display = 'none';
+
+
+            searchCardTextField.style.display = 'none';
+            searchProgramTextField.style.display = 'none';
+            searchPersonTextField.style.display = 'block';
+            searchTypeTextField.style.display = 'none';
+
+            searchCardButton.style.display = 'none';
+            searchProgramButton.style.display = 'none';
+            searchPersonButton.style.display = 'block';
+            searchTypeButton.style.display = 'none';
+
+            clearCardSearchButton.style.display = 'none';
+            clearProgramSearchButton.style.display = 'none';
+            clearPersonSearchButton.style.display = 'block';
+            clearTypeSearchButton.style.display = 'none';
+
+            showCardTableButton.disabled = false;
+            showProgramTableButton.disabled = false;
+            showPersonTableButton.disabled = true;
+            showTypeTableButton.disabled = false;
+
+            currentTable = "person";
+            sessionStorage.setItem("currentTable", currentTable);
+        }
+
+        function showTypeTable() {
+            mainTable.style.display = 'none';
+            programTable.style.display = 'none';
+            personTable.style.display = 'none';
+            typeTable.style.display = 'table';
+
+            mainTable_undoButton.style.display = 'none';
+            programTable_undoButton.style.display = 'none';
+            personTable_undoButton.style.display = 'none';
+            typeTable_undoButton.style.display = 'block';
+
+            addCardButton.style.display = 'none';
+            addProgramButton.style.display = 'none';
+            addPersonButton.style.display = 'none';
+            addTypeButton.style.display = 'block';
+
+
+            searchCardTextField.style.display = 'none';
+            searchProgramTextField.style.display = 'none';
+            searchPersonTextField.style.display = 'none';
+            searchTypeTextField.style.display = 'block';
+
+            searchCardButton.style.display = 'none';
+            searchProgramButton.style.display = 'none';
+            searchPersonButton.style.display = 'none';
+            searchTypeButton.style.display = 'block';
+
+            clearCardSearchButton.style.display = 'none';
+            clearProgramSearchButton.style.display = 'none';
+            clearPersonSearchButton.style.display = 'none';
+            clearTypeSearchButton.style.display = 'block';
+
+            showCardTableButton.disabled = false;
+            showProgramTableButton.disabled = false;
+            showPersonTableButton.disabled = false;
+            showTypeTableButton.disabled = true;
+
+            currentTable = "type";
+            sessionStorage.setItem("currentTable", currentTable);
+        }
+    </script>
+
+</body>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+
+    class Node {
+        constructor(data) {
+            this.data = data;
+            this.next = null;
+            this.prev = null;
+        }
+    }
+
+    class LinkedList {
+        constructor() {
+            this.head = null;
+            this.tail = null;
+            this.current = null;
+            this.size = 0;
+            this.limit = 25;
+
+        }
+
+        push(table) {
+            const newNode = new Node(table);
+
+            if (!this.current && !this.head) {
+                this.head = this.tail = newNode;
+                this.current = newNode;
+                this.size++;
+                return;
+            }
+
+            if (this.current && this.current.next) {
+                let nodeToRemove = this.current.next;
+                while (nodeToRemove) {
+                    let nextNode = nodeToRemove.next;
+                    nodeToRemove = nextNode;
+                    this.size--;
+                }
+                this.tail = this.current;
+                this.current.next = null;
+            }
+
+            if (!this.head) {
+                this.head = newNode;
+                this.tail = newNode;
+            } else {
+                newNode.prev = this.tail;
+                this.tail.next = newNode;
+                this.tail = newNode;
+            }
+
+            this.current = this.tail;
+            this.size++;
+
+            if (this.size > this.limit) {
+                this.head = this.head.next;
+                this.head.prev = null;
+                this.size--;
+            }
+
+        }
+
+
+        undo() {
+            if (this.current && this.current.prev) {
+                this.current = this.current.prev;
+                return this.current.data;
+            } else {
+                return null;
+            }
+        }
+
+        redo() {
+            if (this.current && this.current.next) {
+                this.current = this.current.next;
+                return this.current.data;
+            } else {
+                return null;
+            }
+        }
+
+        peek() {
+            var prev = "Prev: " + (this.current && this.current.prev ? JSON.stringify(this.current.prev.data) : "null");
+            var current = "Current: " + (this.current ? JSON.stringify(this.current.data) : "null");
+            var next = "Next: " + (this.current && this.current.next ? JSON.stringify(this.current.next.data) : "null");
+
+            return this.current ? this.current.data : null;
+        }
+    }
+
+    const cardHistoryStack = new LinkedList();
+    const programHistoryStack = new LinkedList();
+    const personHistoryStack = new LinkedList();
+    const typeHistoryStack = new LinkedList();
+
+    //SAVE HISTORY
+    function saveAllTables() {
+        savePersonTable();
+        saveCardTable();
+        saveProgramTable();
+        saveTypeTable();
+    }
+
+    function saveCardTable() {
+        cardHistoryStack.push(ModelCard);
+
+        sessionStorage.setItem("cardHistoryStack", JSON.stringify(getStackData(cardHistoryStack)));
+    }
+
+    function saveProgramTable() {
+        var Programs = @Html.Raw(Json.Serialize(Model.Programs));
+        programHistoryStack.push(Programs);
+
+        sessionStorage.setItem("programHistoryStack", JSON.stringify(getStackData(programHistoryStack)));
+    }
+
+    function savePersonTable() {
+        var People = @Html.Raw(Json.Serialize(Model.People));
+        personHistoryStack.push(People);
+
+        sessionStorage.setItem("personHistoryStack", JSON.stringify(getStackData(personHistoryStack)));
+    }
+
+    function saveTypeTable() {
+        var Types = @Html.Raw(Json.Serialize(Model.Types));
+        typeHistoryStack.push(Types);
+
+        sessionStorage.setItem("typeHistoryStack", JSON.stringify(getStackData(typeHistoryStack)));
+    }
+
+    //UNDO
+    function undoPersonTable() {
+        var people = personHistoryStack.undo();
+        sessionStorage.setItem("isUndoRefresh", true);
+
+        updatePersonTable(people);
+    }
+
+    function updatePersonTable(people) {
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        people.__RequestVerificationToken = token;
+
+        $.ajax({
+            type: "POST",
+            url: "/Home?handler=UpdatePersonTable",
+            dataType: "json",
+            data:  JSON.stringify(people),
+            contentType: "application/json; charset=utf-8",
+            headers: {
+                'RequestVerificationToken': token
+            },
+            success: function (response) {
+                console.log("Success:", response);
+                window.location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.log("Error:", xhr.status, error);
+                console.log("Response Text:", xhr.responseText);
+            }
+        });
+
+    }
+
+    function undoCardTable() {
+        var cards = cardHistoryStack.undo();
+        sessionStorage.setItem("isUndoRefresh", true);
+
+        updateCardTable(cards);
+    }
+
+    function updateCardTable(cards) {
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        cards.__RequestVerificationToken = token;
+
+        $.ajax({
+            type: "POST",
+            url: "/Home?handler=UpdateCardTable",
+            dataType: "json",
+            data: JSON.stringify(cards),
+            contentType: "application/json; charset=utf-8",
+            headers: {
+                'RequestVerificationToken': token
+            },
+            success: function (response) {
+                console.log("Success:", response);
+                clearCardSearch();
+            },
+            error: function (xhr, status, error) {
+                console.log("Error:", xhr.status, error);
+                console.log("Response Text:", xhr.responseText);
+            }
+        });
+    }
+
+    function undoProgramTable() {
+        var programs = programHistoryStack.undo();
+        sessionStorage.setItem("isUndoRefresh", true);
+
+        updateProgramTable(programs);
+    }
+
+    function updateProgramTable(programs) {
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        programs.__RequestVerificationToken = token;
+
+        $.ajax({
+            type: "POST",
+            url: "/Home?handler=UpdateProgramTable",
+            dataType: "json",
+            data: JSON.stringify(programs),
+            contentType: "application/json; charset=utf-8",
+            headers: {
+                'RequestVerificationToken': token
+            },
+            success: function (response) {
+                console.log("Success:", response);
+                window.location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.log("Error:", xhr.status, error);
+                console.log("Response Text:", xhr.responseText);
+            }
+        });
+
+    }
+
+    function undoTypeTable() {
+        var types = typeHistoryStack.undo();
+        sessionStorage.setItem("isUndoRefresh", true);
+
+        updateTypeTable(types);
+    }
+
+    function updateTypeTable(types) {
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        types.__RequestVerificationToken = token;
+
+        $.ajax({
+            type: "POST",
+            url: "/Home?handler=UpdateTypeTable",
+            dataType: "json",
+            data: JSON.stringify(programs),
+            contentType: "application/json; charset=utf-8",
+            headers: {
+                'RequestVerificationToken': token
+            },
+            success: function (response) {
+                console.log("Success:", response);
+                window.location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.log("Error:", xhr.status, error);
+                console.log("Response Text:", xhr.responseText);
+            }
+        });
+
+    }
+
+    function showCurrentTable() {
+        if (currentTable == "main") {
+            showMainTable();
+        } else if (currentTable == "program") {
+            showProgramTable();
+        } else if (currentTable == "person") {
+            showPersonTable();
+        } else {
+            showTypeTable();
+        }
+    }
+
+    function getStackData(stack) {
+        const data = [];
+        let node = stack.head;
+        while (node) {
+            data.push(node.data);
+            node = node.next;
+        }
+        return data;
+    }
+
+    function reconstructStack(dataArray) {
+        let head = null;
+        let prev = null;
+
+        dataArray.forEach(data => {
+            const newNode = new Node(data);
+            if (!head) {
+                head = newNode;
+            } else {
+                prev.next = newNode;
+                newNode.prev = prev;
+            }
+            prev = newNode;
+        });
+
+        return head;
+    }
+
+    function getTailNode(head) {
+        let node = head;
+        while (node && node.next) {
+            node = node.next;
+        }
+        return node;
+    }
+
+    const closePopupButton_Card = document.getElementById('closePopupButton_Card');
+    const closePopupButton_Program = document.getElementById('closePopupButton_Program');
+    const closePopupButton_Person = document.getElementById('closePopupButton_Person');
+    const closePopupButton_Type = document.getElementById('closePopupButton_Type');
+
+    closePopupButton_Card.addEventListener('click', () => {
+        cardPopup.hide();
+    });
+    closePopupButton_Program.addEventListener('click', () => {
+        programPopup.hide();
+    });
+    closePopupButton_Person.addEventListener('click', () => {
+        personPopup.hide();
+    });
+    closePopupButton_Type.addEventListener('click', () => {
+        typePopup.hide();
+    });
+</script>
+

@@ -1,0 +1,68 @@
+.popup {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	flex-direction: column;
+}
+
+.popup-content {
+	background: white;
+	padding: 20px;
+	position: relative;
+	width: 50%;
+	text-align: center;
+	height: auto;
+	padding: 1%;
+	max-height: 50%;
+	display: block;
+	overflow: auto;
+}
+
+.popup-submit {
+	text-align: center;
+	background: white;
+	width: 50%;
+	height: auto;
+	padding: 1%;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+}
+
+.required::after {
+	content: " *";
+	color: red;
+}
+
+.popup-close {
+	text-align: right;
+	background: white;
+	width: 50%;
+	height: auto;
+	padding: 0.5%;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+}
+
+.close {
+	top: 10px;
+	right: 10px;
+	font-size: 20px;
+	cursor: pointer;
+	color: black;
+}
+
+.label-field {
+	display: grid;
+	text-align: left;
+}
+
+.label-field label {
+	font-weight: bold;
+}

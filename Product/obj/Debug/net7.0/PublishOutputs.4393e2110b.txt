@@ -1,0 +1,7 @@
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\travelapp.exe
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\appsettings.Development.json
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\appsettings.json
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\travelapp.dll
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\travelapp.deps.json
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\travelapp.runtimeconfig.json
+C:\Users\1057247\Downloads\travelapp\bin\Debug\net7.0\publish\travelapp.pdb
